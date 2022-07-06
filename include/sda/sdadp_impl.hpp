@@ -151,6 +151,7 @@ void SDADP<Model>::varDPJob(const std::vector<VXd>& train_data){
 	double starttime = timer.get();
 	if(dist0.K == 0){ //if there is no prior to work off of
 		VarDP<Model> vdp(train_data, test_data, model, alpha, Knew);
+        // 调用了单独的的dp模型
 		vdp.run(false);
 	 	dist1 = vdp.getDistribution();
 	} else { //if there is a prior
@@ -278,12 +279,15 @@ void SDADP<Model>::varDPJob(const std::vector<VXd>& train_data){
 
 template<class Model>
 typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename VarDP<Model>::Distribution src, typename VarDP<Model>::Distribution dest, typename VarDP<Model>::Distribution prior){
-	uint32_t Kp = prior.K;
+	// 将三个部分merge到一起
+    uint32_t Kp = prior.K;
 	uint32_t Ks = src.K;
 	uint32_t Kd = dest.K;
 	uint32_t M = dest.eta.cols();
 	typename VarDP<Model>::Distribution out;
 	assert(Kd >= Kp && Ks >= Kp);
+
+    // 判断聚类簇数是否相同，若相同直接合并
 	if (Ks == Kp){
 		//no new components created; just do the merge directly
 		//match the first Ks elements (one for each src component) to the dest
@@ -317,7 +321,7 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 			}
 		}
 	} else {
-		uint32_t Ksp = Ks-Kp;
+		uint32_t Ksp = Ks-Kp;  // 计算类别数量差
 		uint32_t Kdp = Kd-Kp;
 		//new components were created in both dest and src -- need to solve a matching
 		MXd costs = MXd::Zero(Ksp+Kdp, Ksp+Kdp);
@@ -388,6 +392,9 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 		//std::cout << "costsi: " << std::endl << costsi << std::endl;
 
 		std::vector<int> matchings;
+
+        // 计算cost 并使用hungarian算法进行匹配
+        // 如文章中调用hungarian计算
 		int cost = hungarian(costsi, matchings);
 
 

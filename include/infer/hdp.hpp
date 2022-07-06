@@ -11,6 +11,8 @@
 #include <random>
 #include <sdabnp/util/timer.hpp>
 #include <sdabnp/util/kmpp.hpp>
+#include <sdabnp/util/trace.hpp>
+
 
 typedef Eigen::VectorXd VXd;
 typedef Eigen::MatrixXd MXd;
@@ -18,22 +20,27 @@ double boost_lbeta(double a, double b);
 using boost::math::digamma;
 using boost::math::lgamma;
 
-class VarHDPResults{
-	public:
-		MXd eta;
-		VXd u, v, nu;
-		std::vector<VXd> a, b;
-		std::vector<MXd> phi, zeta;
-		std::vector<double> times, objs, testlls;
-		void save(std::string name);
-};
+
 
 template<class Model>
 class VarHDP{
 	public:
+        class VarHDPResults{
+            public:
+                uint32_t T,K;
+                MXd eta;
+                VXd u, v, nu;
+                VXd sumz,logp0;
+                std::vector<VXd> a, b;
+                std::vector<MXd> phi, zeta;
+//                std::vector<VXd> sumz,logp0;
+                std::vector<double> times, objs, testlls;
+                void save(std::string name);
+        };
 		VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
 		void run(bool computeTestLL = false, double tol = 1e-6);
 		VarHDPResults getResults();
+        Trace getTrace();
 
 	private:
 		void init();

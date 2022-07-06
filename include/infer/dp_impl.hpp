@@ -1,4 +1,6 @@
 #ifndef __DP_IMPL_HPP
+// todo
+
 
 template<class Model>
 VarDP<Model>::VarDP(const std::vector<VXd>& train_data, const std::vector<VXd>& test_data, const Model& model, double alpha, uint32_t K) : model(model), alpha(alpha), K(K){
@@ -56,7 +58,8 @@ VarDP<Model>::VarDP(const std::vector<VXd>& train_data, const std::vector<VXd>& 
 
 	//initialize memory
 	a = b = psisum = nu = sumzeta = dlogh_dnu = logh = VXd::Zero(K);
-	zeta = MXd::Zero(N, K);
+	// todo：搞清楚eta的作用
+    zeta = MXd::Zero(N, K);
 	sumzetaT = dlogh_deta = eta = MXd::Zero(K, M);
 	a0 = prior.a;
 	b0 = prior.b;
@@ -230,6 +233,8 @@ void VarDP<Model>::init(){
 template<class Model>
 void VarDP<Model>::updateWeightDist(){
 	//Update a, b, and psisum
+    // 更行模型超参数
+
 	double psibk = 0.0;
 	for (uint32_t k = 0; k < K; k++){
 		if (k < K0){
@@ -534,7 +539,7 @@ double VarDP<Model>::computeTestLogLikelihood(){
 		weights(K-1) = stick;
 
 		MXd logp = model.getLogPosteriorPredictive(test_mxd, eta, nu).array().rowwise() + (weights.transpose()).array().log();
-		VXd llmaxs = logp.rowwise().maxCoeff();
+		VXd llmaxs = logp.rowwise().maxCoeff(); // 返回矩阵中的最大值
 		logp.colwise() -= llmaxs;
 		VXd lls = ((logp.array().exp()).rowwise().sum()).log();
 		return (lls + llmaxs).sum()/Nt;
@@ -565,9 +570,9 @@ double VarDP<Model>::computeTestLogLikelihood(){
 }
 
 
-double boost_lbeta(double a, double b){
-	return lgamma(a)+lgamma(b)-lgamma(a+b);
-}
+//double boost_lbeta(double a, double b){
+//	return lgamma(a)+lgamma(b)-lgamma(a+b);
+//}
 
 template<class Model>
 void VarDP<Model>::Distribution::save(std::string name){

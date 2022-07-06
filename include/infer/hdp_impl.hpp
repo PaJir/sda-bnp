@@ -22,10 +22,12 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
 	rng.seed(rd());
 
 	//initialize memory
-	nu = logh = dlogh_dnu = psiuvsum = phizetasum = phisum = VXd::Zero(T);
-	eta = dlogh_deta = phizetaTsum = MXd::Zero(T, M);
+    // T is global, K is local
+	nu = logh = dlogh_dnu = psiuvsum = phizetasum = phisum = VXd::Zero(T); // global part
+	eta = dlogh_deta = phizetaTsum = MXd::Zero(T, M); // global part
 	u = v = VXd::Zero(T-1); 
 	for (uint32_t i = 0; i < N; i++){
+        // local part
 		a.push_back(VXd::Zero(K-1));
 		b.push_back(VXd::Zero(K-1));
 		psiabsum.push_back(VXd::Zero(K));
@@ -54,7 +56,12 @@ void VarHDP<Model>::init(){
 		tmp_stats.row(i) = train_stats[gid].row(lid);
 	}
 
-	std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, rng);
+    // kmeanspp 仅在init用到
+    std::vector<double> maxMinDists;
+    // todo:kmeaspp部分找到eta0和K0 eta0是有问题的 现在只能保证跑通 and prior hdp中是没有的
+    uint32_t K0 = 0;
+    std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta, K0, rng, maxMinDists);
+//	std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, rng);
 	for (uint32_t t = 0; t < T; t++){
 		//Update the parameters 
 	    for (uint32_t j = 0; j < M; j++){
@@ -180,24 +187,56 @@ void VarHDP<Model>::run(bool computeTestLL, double tol){
 }
 
 template<class Model>
-VarHDPResults VarHDP<Model>::getResults(){
-	VarHDPResults hdpr;
+typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
+    // 相当于distribution
+	VarHDP<Model>::VarHDPResults hdpr;
+
+
+    hdpr.K = this->K;
+    hdpr.T = this->T;
+
 	hdpr.eta = this->eta;
 	hdpr.nu = this->nu;
 	hdpr.u = this->u;
 	hdpr.v = this->v;
 	hdpr.zeta = this->zeta;
 	hdpr.phi = this->phi;
+    hdpr.sumz = (this->phizetaTsum.colwise().sum()).transpose();
+    hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).colwise().sum()).transpose();
+    for (uint32_t k = 0; k < T; k++){
+        if (hdpr.logp0(k) < -800.0){ //stops numerical issues later on -- approximation is good enough, for all intents and purposes exp(-800) = 0
+            hdpr.logp0(k) = -800.0;
+        }
+    }
+
+    // done: 是否需要push back
+//    for (auto vec: this->zeta){
+//        tmp_sumz = vec.colwise().sum().transpose();
+//        hdpr.sumz.push_back(tmp_sumz);
+//    }
+//    for (auto vec: this->zeta){
+//        tmp_logp0 = (((1.0-vec.array()).log()).colwise().sum()).transpose();
+//        hdpr.logp0.push_back(tmp_sumz);
+//    }
+
+//    hdpr.sumz = (this->zeta.colwise().sum()).transpose();
+//    hdpr.logp0 = (((1.0-this->zeta.array()).log()).colwise().sum()).transpose();
+
 	hdpr.a = this->a;
 	hdpr.b = this->b;
 	hdpr.times = this->times;
 	hdpr.objs = this->objs;
 	hdpr.testlls = this->testlls;
+
+//    hdpr.T = this->T;
+//    hdpr.K = this->Knew;
+
+
 	return hdpr;
 }
 
-
-void VarHDPResults::save(std::string name){
+template<class Model>
+void VarHDP<Model>::VarHDPResults::save(std::string name){
 	for (uint32_t i = 0; i < zeta.size(); i++){
 		std::ostringstream ossz, ossp, ossab;
 		ossz << name << "-zeta-" << i << ".log";
@@ -281,6 +320,8 @@ void VarHDP<Model>::updateLocalDists(double tol){
 template<class Model>
 void VarHDP<Model>::updateLocalWeightDist(uint32_t idx){
 	//Update a, b, and psisum
+    // 跟dp比多了一个纬度
+
 	psiabsum[idx] = VXd::Zero(K);
 	double psibk = 0.0;
 	for (uint32_t k = 0; k < K-1; k++){
@@ -333,6 +374,8 @@ void VarHDP<Model>::updateLocalLabelDist(uint32_t idx){
 template<class Model>
 void VarHDP<Model>::updateLocalCorrespondenceDist(uint32_t idx){
 	//update the correspondence distribution
+
+    // local的坐标是idx
 	phiNsum[idx] = VXd::Zero(K);
 	phiEsum[idx] = MXd::Zero(K, M);
 	
@@ -393,6 +436,8 @@ void VarHDP<Model>::updateGlobalWeightDist(){
 
 template<class Model>
 void VarHDP<Model>::updateGlobalParamDist(){
+    // 全局参数更新
+
 	for (uint32_t t = 0; t < T; t++){
 		nu(t) = model.getNu0() + phizetasum(t);
 		for (uint32_t j = 0; j < M; j++){
@@ -404,6 +449,8 @@ void VarHDP<Model>::updateGlobalParamDist(){
 
 template<class Model>
 double VarHDP<Model>::computeFullObjective(){
+    // todo 多出来的那层
+
 	//reuse the local code for computing each local obj
 	double obj = 0;
 	for (uint32_t i =0 ; i < N; i++){
