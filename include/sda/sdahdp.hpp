@@ -46,10 +46,10 @@ private:
     std::mutex distmut;
     MultiTrace mtrace;
     MXd test_mxd;
-    std::vector< std::vector<VXd> >& test_data;
+    std::vector< std::vector<VXd> > test_data;
     std::vector< typename VarHDP<Model>::VarHDPResults > dists;
 
-    void varHDPJob(const std::vector<VXd>& train_data);
+    void varHDPJob(const std::vector< std::vector<VXd> >& train_data);
     Pool<std::function<void()> > pool;
 };
 

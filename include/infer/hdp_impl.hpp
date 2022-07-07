@@ -104,7 +104,7 @@ void VarHDP<Model>::init(){
 			}
 		}
 		//take the top K and weight more heavily for dirichlet
-		std::sort(asgnscores.begin(), asgnscores.end(), [] (std::pair<uint32_t, double>& s1, std::pair<uint32_t, double>& s2){ return s1.second > s2.second;});
+		std::sort(asgnscores.begin(), asgnscores.end(), [] (std::pair<uint32_t, double> s1, std::pair<uint32_t, double> s2){ return s1.second > s2.second;});
 		phi[i] = MXd::Ones(K, T);
 		for (uint32_t k = 0; k < K; k++){
 			phi[i](k, asgnscores[k].first) += 3;
