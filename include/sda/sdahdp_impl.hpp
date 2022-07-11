@@ -11,7 +11,7 @@ SDAHDP<Model>::SDAHDP(const std::vector< std::vector<VXd> >& test_data, const Mo
 //        for (uint32_t j = 0; j < test_data[i].size(); j++)
 //            test_mxd.col(i) = test_data[i][j];
 //    }
-    dist.K = 0;
+    dist.T = 0;
     timer.start(); //start the clock -- used for tracking performance
 }
 
@@ -77,7 +77,7 @@ double SDAHDP<Model>::computeTestLogLikelihood(typename VarHDP<Model>::VarHDPRes
     //dist0.K = 3;
 
 
-    uint32_t K = dist0.K;
+    uint32_t T = dist0.T;
     uint32_t Nt = test_mxd.cols();
 
     if (Nt == 0){
@@ -93,7 +93,7 @@ double SDAHDP<Model>::computeTestLogLikelihood(typename VarHDP<Model>::VarHDPRes
         weights(k) = stick*dist0.u(k)/(dist0.u(k)+dist0.v(k));
         stick *= dist0.v(k)/(dist0.u(k)+dist0.v(k)); // done： a 和 b 的维度要改变
     }
-    weights(K-1) = stick;
+    weights(T-1) = stick;
 
     // 传入 test_MX eta nu
 
@@ -118,6 +118,7 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
     //lock the mutex, get the distribution, unlock
     typename VarHDP<Model>::VarHDPResults dist0;
     {
+        std::cout<<"success getting results"<<std::endl;
         std::lock_guard<std::mutex> lock(distmut);
         //	ljn = jobNum++;
         //	std::cout << "Starting job " << ljn << std::endl;
@@ -139,7 +140,9 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
         //VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
         VarHDP<Model> vhdp(train_data, test_data, model, gam, alpha, T, Knew);
         vhdp.run(false);
+        std::cout<<"success run"<<std::endl;
         dist1 = vhdp.getResults();
+        std::cout<<"success getting results without prior"<<std::endl;
     } else { //if there is a prior
         //VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
 //        VarHDP<Model> vhdp(train_data, test_data, dist0, model, alpha, dist0.K+Knew);
@@ -147,6 +150,7 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
         vhdp.run(false);
         std::cout<<"success run"<<std::endl;
         dist1 = vhdp.getResults();
+        std::cout<<"success getting results with prior"<<std::endl;
     }
     //std::cout << "Done Inference " << ljn << std::endl;
     //oss << "dist1-" << ljn;
@@ -158,11 +162,13 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
     //remove empty clusters
 //    std::cout << "Remove empties " << ljn << std::endl;
     for (uint32_t k = dist0.T; k < dist1.T; k++){
+        std::cout<<dist0.T<<dist1.T<<std::endl;
+        std::cout<<dist1.sumz(k)<<std::endl;
         if (dist1.sumz(k) < 1.0 && k < dist1.T-1){
             // done: 是否需要加参数 这边是在去除空的cluster 要根据hdp的参参数调用
             // eta nu u v zeta phi a b times objs testlls
             dist1.eta.block(k, 0, dist1.T-(k+1), dist1.eta.cols()) = (dist1.eta.block(k+1, 0, dist1.T-(k+1), dist1.eta.cols())).eval();
-            dist1.eta.conservativeResize(dist1.K-1, Eigen::NoChange);
+            dist1.eta.conservativeResize(dist1.T-1, Eigen::NoChange);
             dist1.nu.segment(k, dist1.T-(k+1)) = (dist1.nu.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
             dist1.nu.conservativeResize(dist1.T-1);
 
@@ -175,6 +181,11 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
             dist1.u.conservativeResize(dist1.T-1);
             dist1.v.segment(k, dist1.T-(k+1)) = (dist1.v.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
             dist1.v.conservativeResize(dist1.T-1);
+
+            dist1.sumz.segment(k, dist1.T-(k+1)) = (dist1.sumz.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
+            dist1.sumz.conservativeResize(dist1.T-1);
+            dist1.logp0.segment(k, dist1.T-(k+1)) = (dist1.logp0.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
+            dist1.logp0.conservativeResize(dist1.T-1);
 
 
 //            dist1.zeta.segment(k, dist1.T-(k+1)) = (dist1.zeta.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
@@ -195,7 +206,9 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
             k--;
         } else if (dist1.sumz(k) < 1.0){ //just knock off the end
             // eta nu u v zeta phi a b times objs testlls
-
+            dist1.sumz.conservativeResize(dist1.T-1);
+            dist1.logp0.conservativeResize(dist1.T-1);
+// todo bug
             dist1.eta.conservativeResize(dist1.T-1, Eigen::NoChange);
             dist1.nu.conservativeResize(dist1.T-1);
 //            dist1.a.conservativeResize(dist1.T-1);

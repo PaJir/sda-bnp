@@ -87,8 +87,9 @@ double DirModel::getLogPosteriorPredictive(VXd x, VXd etak, double nuk){
 
 double DirModel::naturalParameterDistSquared(VXd& stat1, VXd& stat2){
 	//TODO: FIX THIS
-	assert(false);
-	return 0;
+    VXd m1 = stat1.block(D*D, 0, D, 1);
+    VXd m2 = stat2.block(D*D, 0, D, 1);
+    return (m1-m2).squaredNorm();
 }
 
 

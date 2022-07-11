@@ -68,6 +68,8 @@ int main(int argc, char** argv){
 	std::ofstream trout("train.log");
 	std::ofstream teout("test.log");
 	std::cout << "Sampling training/test data" << std::endl;
+
+    // 下面两个循环多了两层
 	for (uint32_t i = 0; i < N; i++){
 		train_data.push_back(std::vector<VXd>());
 		for (uint32_t j = 0; j < Nl; j++){
@@ -97,6 +99,8 @@ int main(int argc, char** argv){
 	trout.close();
 	teout.close();
 
+    // 调用hdp的过程
+
 	VXd mu0 = VXd::Zero(D);
 	MXd psi0 = MXd::Identity(D, D);
 	double kappa0 = 1e-6;
@@ -106,8 +110,8 @@ int main(int argc, char** argv){
 	std::cout << "Running VarHDP..." << std::endl;
 	VarHDP<NIWModel> hdp(train_data, test_data, niw, 1.0, 1.0, T, K);
 
-	hdp.run(true);
-	VarHDPResults res = hdp.getResults();
+	hdp.run(false);
+    VarHDP<NIWModel>::VarHDPResults res = hdp.getResults();
 	res.save("hdpmix");
 
 	return 0;

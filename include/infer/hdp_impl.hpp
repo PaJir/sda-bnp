@@ -267,13 +267,16 @@ typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
 	hdpr.v = this->v;
 	hdpr.zeta = this->zeta;
 	hdpr.phi = this->phi;
+    std::cout<<"done getting params"<<std::endl;
     hdpr.sumz = (this->phizetaTsum.colwise().sum()).transpose();
+    std::cout<<"done computing sumz"<<std::endl;
     hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).colwise().sum()).transpose();
-    for (uint32_t k = 0; k < T; k++){
+    for (uint32_t k = 0; k < T-1; k++){
         if (hdpr.logp0(k) < -800.0){ //stops numerical issues later on -- approximation is good enough, for all intents and purposes exp(-800) = 0
             hdpr.logp0(k) = -800.0;
         }
     }
+    std::cout<<"done computing logp0"<<std::endl;
 
     // done: 是否需要push back
 //    for (auto vec: this->zeta){
@@ -304,6 +307,7 @@ typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
 template<class Model>
 void VarHDP<Model>::VarHDPResults::save(std::string name){
 	for (uint32_t i = 0; i < zeta.size(); i++){
+        std::cout<<zeta.size()<<std::endl;
 		std::ostringstream ossz, ossp, ossab;
 		ossz << name << "-zeta-" << i << ".log";
 		ossp << name << "-phi-" << i << ".log";
@@ -633,6 +637,9 @@ double VarHDP<Model>::computeTestLogLikelihood(){
 	//TODO: fill in
 	//run local variational inference on some % of each test collection
 	//compute logposteriorpredictive on the other % using the local variational params
+//    test_mxd =
+
+
 
 	return 0.0;
 

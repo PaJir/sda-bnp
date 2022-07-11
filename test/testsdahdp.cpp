@@ -114,7 +114,7 @@ int main(int argc, char** argv){
 
     std::cout << "Running VarHDP..." << std::endl;
 
-    SDAHDP<NIWModel> sdahdp (test_data, niw,1.0, 1.0, 10,3, 8);
+    SDAHDP<NIWModel> sdahdp (test_data, niw,1.0, 1.0, K,T, 8);
 
     uint32_t Nctr = 0;
     while(Nctr < N){
