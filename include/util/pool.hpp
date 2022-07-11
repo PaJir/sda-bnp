@@ -21,7 +21,7 @@ class Pool{
 
 		std::queue<Job> jobs;
 		std::mutex queue_mutex;
-		std::condition_variable queue_cond, wait_cond;
+		std::condition_variable queue_cond, wait_cond; // 实现多个线程间的同步操作
 };
 
 

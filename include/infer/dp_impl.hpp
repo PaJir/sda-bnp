@@ -58,7 +58,6 @@ VarDP<Model>::VarDP(const std::vector<VXd>& train_data, const std::vector<VXd>& 
 
 	//initialize memory
 	a = b = psisum = nu = sumzeta = dlogh_dnu = logh = VXd::Zero(K);
-	// todo：搞清楚eta的作用
     zeta = MXd::Zero(N, K);
 	sumzetaT = dlogh_deta = eta = MXd::Zero(K, M);
 	a0 = prior.a;
@@ -347,7 +346,8 @@ void VarDP<Model>::updateLabelDist(){
 template<class Model>
 typename VarDP<Model>::Distribution VarDP<Model>::getDistribution(){
 	VarDP<Model>::Distribution d;
-	d.sumz = (this->zeta.colwise().sum()).transpose();
+
+	d.sumz = (this->zeta.colwise().sum()).transpose(); // todo 和sumzeta一样的
 	d.logp0 = (((1.0-this->zeta.array()).log()).colwise().sum()).transpose();
 	for (uint32_t k = 0; k < K; k++){
 		if (d.logp0(k) < -800.0){ //stops numerical issues later on -- approximation is good enough, for all intents and purposes exp(-800) = 0

@@ -2,9 +2,13 @@
 
 template<class Model>
 VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K) : model(model), test_data(test_data), gam(gam), alpha(alpha), T(T), K(K){
-	this->M = this->model.getStatDimension();
+	std::cout<<"init without prior"<<std::endl;
+    this->M = this->model.getStatDimension();
 	this->N = train_data.size();
 	this->Nt = test_data.size();
+    K0 = 0;
+    T0 = 0;
+    eta0 = MXd::Zero(T, M);
 
 	for (uint32_t i = 0; i < N; i++){
 		this->Nl.push_back(train_data[i].size());
@@ -41,7 +45,68 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
 }
 
 template<class Model>
+VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const VarHDPResults& prior,const Model& model, double gam, double alpha, uint32_t T, uint32_t K) : model(model), test_data(test_data), gam(gam), alpha(alpha), T(T), K(K){
+    std::cout<<"init with prior"<<std::endl;
+
+    this->M = this->model.getStatDimension();
+    this->N = train_data.size();
+    this->Nt = test_data.size();
+    std::cout<<"done getting M N Nt"<<std::endl;
+    T0 = prior.T;
+    K0 = prior.K;
+    eta0 = prior.eta;
+    nu0 = prior.nu;
+    u0 = prior.u;
+    v0 = prior.v;
+    std::cout<<"done getting prior"<<std::endl;
+
+    for (uint32_t i = 0; i < N; i++){
+        this->Nl.push_back(train_data[i].size());
+        train_stats.push_back(MXd::Zero(Nl.back(), M));
+        for (uint32_t j = 0; j < Nl.back(); j++){
+            train_stats.back().row(j) = this->model.getStat(train_data[i][j]).transpose();
+        }
+    }
+    std::cout<<"done getting train_stats"<<std::endl;
+    for (uint32_t i = 0; i < Nt; i++){
+        this->Ntl.push_back(test_data[i].size());
+    }
+    std::cout<<"done getting test_data"<<std::endl;
+    //seed random gen
+    std::random_device rd;
+    rng.seed(rd());
+    std::cout<<"done getting rng params"<<std::endl; //
+    //initialize memory
+    // T is global, K is local
+    nu = logh = dlogh_dnu = psiuvsum = phizetasum = phisum = VXd::Zero(T); // global part
+    std::cout<<"done getting global params"<<std::endl; //
+    eta = dlogh_deta = phizetaTsum = MXd::Zero(T, M); // global part
+    std::cout<<"done getting global params"<<std::endl; //
+    u = v = VXd::Zero(T-1);
+    std::cout<<"done getting global params"<<std::endl; //
+    for (uint32_t i = 0; i < N; i++){
+        // local part
+        a.push_back(VXd::Zero(K-1));
+        b.push_back(VXd::Zero(K-1));
+        psiabsum.push_back(VXd::Zero(K));
+        zeta.push_back(MXd::Zero(Nl[i], K));
+        zetasum.push_back(VXd::Zero(K));
+        phiNsum.push_back(VXd::Zero(K));
+        phiEsum.push_back(MXd::Zero(K, M));
+        zetaTsum.push_back(MXd::Zero(K, M));
+        phi.push_back(MXd::Zero(K, T));
+    }
+    std::cout<<"done getting local params"<<std::endl;
+
+    MXd tmp1 = MXd::Zero(eta0.rows(), eta0.cols());
+    VXd tmp2 = VXd::Zero(nu0.size());
+    this->model.getLogH(eta0,nu0,logh0,tmp1,tmp2);
+    std::cout<<"done getting logh"<<std::endl;
+}
+
+template<class Model>
 void VarHDP<Model>::init(){
+    std::cout<<"init"<<std::endl;
 	//use kmeans++ to break symmetry in the intiialization
 	int Nlsum = 0;
 	for (uint32_t i = 0; i < N; i++){
@@ -58,9 +123,9 @@ void VarHDP<Model>::init(){
 
     // kmeanspp 仅在init用到
     std::vector<double> maxMinDists;
-    // todo:kmeaspp部分找到eta0和K0 eta0是有问题的 现在只能保证跑通 and prior hdp中是没有的
-    uint32_t K0 = 0;
-    std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta, K0, rng, maxMinDists);
+    // done:kmeaspp部分找到eta0和K0 eta0是有问题的 现在只能保证跑通 and prior hdp中是没有的
+//    uint32_t K0 = 0;
+    std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta0, K0, rng, maxMinDists);
 //	std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, rng);
 	for (uint32_t t = 0; t < T; t++){
 		//Update the parameters 
@@ -188,6 +253,7 @@ void VarHDP<Model>::run(bool computeTestLL, double tol){
 
 template<class Model>
 typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
+    std::cout<<"getting results"<<std::endl;
     // 相当于distribution
 	VarHDP<Model>::VarHDPResults hdpr;
 
@@ -418,7 +484,7 @@ void VarHDP<Model>::updateGlobalDist(){
 
 template<class Model>
 void VarHDP<Model>::updateGlobalWeightDist(){
-	//Update u, v, and psisum
+	//Update u, v, and psisum psiuvsum(t) 权重之和
 	psiuvsum = VXd::Zero(T);
 	double psivt = 0.0;
 	for (uint32_t t = 0; t < T-1; t++){

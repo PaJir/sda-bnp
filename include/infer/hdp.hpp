@@ -37,8 +37,10 @@ class VarHDP{
                 std::vector<double> times, objs, testlls;
                 void save(std::string name);
         };
+
 		VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
-		void run(bool computeTestLL = false, double tol = 1e-6);
+        VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const VarHDPResults& prior,const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
+        void run(bool computeTestLL = false, double tol = 1e-6);
 		VarHDPResults getResults();
         Trace getTrace();
 
@@ -62,13 +64,15 @@ class VarHDP{
 
 		std::mt19937 rng;
 		double gam, alpha; //gamma = global concentration, alpha = local concentration, eta = prior dirichlet topic
-		uint32_t N, Nt, T, K, M; // N is number of observation collections, T is global truncation, K is local truncation, M is stat dimension
+		uint32_t N, Nt, T, T0, K, K0, M; // N is number of observation collections, T is global truncation, K is local truncation, M is stat dimension
 		std::vector<uint32_t> Nl, Ntl; //local number of observations in each collection
 
 		Model model;
 
 		MXd eta, dlogh_deta;//dirichlet variational parameters for topics
+        MXd eta0;
 		VXd u, v, nu, logh, dlogh_dnu;//eeta variational parameters for global sticks
+        VXd u0,v0,nu0,logh0;
 		MXd phizetaTsum;
 		VXd phizetasum, phisum, psiuvsum;
 		std::vector<VXd> a, b, psiabsum, zetasum, phiNsum;

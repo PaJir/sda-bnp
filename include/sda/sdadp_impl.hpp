@@ -2,7 +2,7 @@
 
 template<class Model>
 SDADP<Model>::SDADP(const std::vector<VXd>& test_data, const Model& model, double alpha, uint32_t Knew, uint32_t nthr):
-test_data(test_data), model(model), alpha(alpha), Knew(Knew), pool(nthr){
+test_data(test_data), model(model), alpha(alpha), Knew(Knew), pool(nthr){ // 线程数
 	test_mxd = MXd::Zero(test_data[0].size(), test_data.size());
 	for (uint32_t i =0; i < test_data.size(); i++){
 		test_mxd.col(i) = test_data[i];
@@ -136,7 +136,7 @@ void SDADP<Model>::varDPJob(const std::vector<VXd>& train_data){
 		std::lock_guard<std::mutex> lock(distmut);
 	//	ljn = jobNum++;
 	//	std::cout << "Starting job " << ljn << std::endl;
-		dist0 = dist;
+		dist0 = dist; // todo:dist是什么
 	} //release the lock
 
 	//std::ostringstream oss;
@@ -155,7 +155,7 @@ void SDADP<Model>::varDPJob(const std::vector<VXd>& train_data){
 		vdp.run(false);
 	 	dist1 = vdp.getDistribution();
 	} else { //if there is a prior
-		VarDP<Model> vdp(train_data, test_data, dist0, model, alpha, dist0.K+Knew);
+		VarDP<Model> vdp(train_data, test_data, dist0, model, alpha, dist0.K+Knew); // 中心结点作为先验
 		vdp.run(false);
 	 	dist1 = vdp.getDistribution();
 	}
@@ -220,7 +220,7 @@ void SDADP<Model>::varDPJob(const std::vector<VXd>& train_data){
 		//merge
 		double t0 = timer.get(); //reuse t0 -- already stored it above
 		//std::cout << "Job " << ljn << std::endl;
-		dist = mergeDistributions(dist1, dist, dist0);
+		dist = mergeDistributions(dist1, dist, dist0); // merge
 		mergetime = timer.get()- t0;
 	//	std::cout << "Done Merging, saving dist " << ljn << std::endl;
 		t0 = timer.get();
@@ -288,7 +288,7 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 	assert(Kd >= Kp && Ks >= Kp);
 
     // 判断聚类簇数是否相同，若相同直接合并
-	if (Ks == Kp){
+	if (Ks == Kp){ // dist1 dist0 minibatch
 		//no new components created; just do the merge directly
 		//match the first Ks elements (one for each src component) to the dest
 		out = dest;
@@ -296,36 +296,40 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 		out.nu.head(Ks) += src.nu - prior.nu;
 		out.sumz.head(Ks) += src.sumz;
 		out.logp0.head(Ks) += src.logp0;
-		for (uint32_t k = 0; k < Kd; k++){
+		for (uint32_t k = 0; k < Kd; k++){ // 和dest合并
 			out.a(k) = 1.0 + out.sumz(k);
 			out.b(k) = alpha;
 			for (uint32_t j = k+1; j < Kd; j++){
 				out.b(k) += out.sumz(j);
 			}
 		}
-	} else if (Kd == Kp) {
-		//new components were created in src, but dest is still the same size as prior
+	} else if (Kd == Kp) { // dist dist0
+		//new components were created in src dist1, but dest is still the same size as prior
 		//just do the merge directly from dest into src
-		out = src;
+		out = src; //dist1 dist
 		if (Kp > 0){
 			out.eta.block(0, 0, Kd, M) += dest.eta - prior.eta;
 			out.nu.head(Kd) += dest.nu - prior.nu;
 			out.sumz.head(Kd) += dest.sumz;
 			out.logp0.head(Kd) += dest.logp0;
 		}
-		for (uint32_t k = 0; k < Ks; k++){
+		for (uint32_t k = 0; k < Ks; k++){ // 和src合并
 			out.a(k) = 1.0 + out.sumz(k);
 			out.b(k) = alpha;
 			for (uint32_t j = k+1; j < Ks; j++){
 				out.b(k) += out.sumz(j);
 			}
 		}
-	} else {
-		uint32_t Ksp = Ks-Kp;  // 计算类别数量差
-		uint32_t Kdp = Kd-Kp;
+	}
+
+    //
+
+    else {
+		uint32_t Ksp = Ks-Kp;  // 计算类别数量差 src prior
+		uint32_t Kdp = Kd-Kp; // dest prior
 		//new components were created in both dest and src -- need to solve a matching
 		MXd costs = MXd::Zero(Ksp+Kdp, Ksp+Kdp);
-		MXi costsi = MXi::Zero(Ksp+Kdp, Ksp+Kdp);
+		MXi costsi = MXi::Zero(Ksp+Kdp, Ksp+Kdp); // 维度
 
 		//get logp0 and Enk for d1 and d2
 		VXd logp0s = src.logp0.tail(Ksp);
@@ -339,37 +343,37 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 		VXd loghm = num;
 		VXd dlogh_dnum = num;
 		MXd dlogh_detam = etam;
-		for (uint32_t i = 0; i < Ksp; i++){
+		for (uint32_t i = 0; i < Ksp; i++){ //(0,Ksp)(Kdp,Ksp+Kdp)
 			//compute costs in the 1-2 block and fill in the 1-0 block
 			for (uint32_t j = 0; j < Kdp; j++){
 				etam = src.eta.row(Kp+i) + dest.eta.row(Kp+j) - model.getEta0().transpose();
 				num(0) = src.nu(Kp+i) + dest.nu(Kp+j) - model.getNu0();
-				model.getLogH(etam, num, loghm, dlogh_detam, dlogh_dnum);
-				costs(i, j) = loghm(0) - log(alpha)*(1.0-exp(logp0s(i)+logp0d(j))) - lgamma(Enks(i)+Enkd(j));
+				model.getLogH(etam, num, loghm, dlogh_detam, dlogh_dnum); // 会改变传进去的值
+				costs(i, j) = loghm(0) - log(alpha)*(1.0-exp(logp0s(i)+logp0d(j))) - lgamma(Enks(i)+Enkd(j)); // src dest
 			}
-			//compute costs in the 1-0 block
+			//compute costs in the 1-0 block  src prior
 			etam = src.eta.row(Kp+i);
-			num(0) = src.nu(Kp+i);
+			num(0) = src.nu(Kp+i); // unused in Dir model
 			model.getLogH(etam, num, loghm, dlogh_detam, dlogh_dnum);
-			double c10 = loghm(0) - log(alpha)*(1.0-exp(logp0s(i))) - lgamma(Enks(i));
+			double c10 = loghm(0) - log(alpha)*(1.0-exp(logp0s(i))) - lgamma(Enks(i)); //src
 			for (uint32_t j = Kdp; j < Ksp+Kdp; j++){
 				costs(i, j) = c10;
 			}
 		}
 
-		//compute costs in the 2-0 block
-		for (uint32_t j = 0; j < Kdp; j++){
+		//compute costs in the 2-0 block  dist2- dist0
+		for (uint32_t j = 0; j < Kdp; j++){ //(0,Kdp)(Ksp,Ksp+Kdp)
 			etam = dest.eta.row(Kp+j);
 			num(0) = dest.nu(Kp+j);
 			model.getLogH(etam, num, loghm, dlogh_detam, dlogh_dnum);
-			double c20 = loghm(0) - log(alpha)*(1.0-exp(logp0d(j))) - lgamma(Enkd(j));
+			double c20 = loghm(0) - log(alpha)*(1.0-exp(logp0d(j))) - lgamma(Enkd(j)); //dest
 			for (uint32_t i = Ksp; i < Ksp+Kdp; i++){
 				costs(i, j) = c20;
 			}
 		}
 
 		//the 0-0 block is a constant
-		for (uint32_t i = Ksp; i < Ksp+Kdp; i++){
+		for (uint32_t i = Ksp; i < Ksp+Kdp; i++){   //(Ksp,Ksp+Kdp)(Kdp,Ksp+Kdp)
 			for (uint32_t j = Kdp; j < Ksp+Kdp; j++){
 				costs(i, j) = model.getLogH0();
 			}
@@ -413,6 +417,8 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 		}
 
 		//merge the last Ksp elements using the matchings
+        // 合并进原来的K0个
+
 		for (uint32_t i = Kp; i < Ks; i++){
 			uint32_t toIdx = Kp+matchings[i-Kp];
 			if (toIdx < Kd){
@@ -434,6 +440,8 @@ typename VarDP<Model>::Distribution SDADP<Model>::mergeDistributions(typename Va
 		}
 		out.a.resize(out.K);
 		out.b.resize(out.K);
+
+        // 最终再根据一堆超参数更新beta分布的参数
 		for (uint32_t k = 0; k < out.K; k++){
 			out.a(k) = 1.0 + out.sumz(k);
 			out.b(k) = alpha;

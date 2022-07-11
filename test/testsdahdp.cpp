@@ -13,8 +13,8 @@ typedef Eigen::VectorXd VXd;
 
 int main(int argc, char** argv){
     //constants
-    uint32_t T = 7;
-    uint32_t K = 3;
+    uint32_t T = 100;
+    uint32_t K = 10;
     uint32_t N = 100;
     uint32_t Nl = 100;
     uint32_t Nt = 100;
@@ -114,7 +114,7 @@ int main(int argc, char** argv){
 
     std::cout << "Running VarHDP..." << std::endl;
 
-    SDAHDP<NIWModel> sdahdp (test_data, niw,1.0, 1.0, 3,3, 8);
+    SDAHDP<NIWModel> sdahdp (test_data, niw,1.0, 1.0, 10,3, 8);
 
     uint32_t Nctr = 0;
     while(Nctr < N){

@@ -1,5 +1,6 @@
 #include <sdabnp/sda_dp_mixture>
 #include <sdabnp/model/normal_inverse_wishart>
+
 #include <Eigen/Dense>
 #include <random>
 
@@ -93,7 +94,8 @@ int main(int argc, char** argv){
 	MXd psi0 = MXd::Identity(D, D);
 	double kappa0 = 1e-6;
 	double xi0 = D+2;
-	NIWModel niw(mu0, kappa0, psi0, xi0);
+	NIWModel niw(mu0, kappa0, psi0, xi0); // prior
+
 
 	std::cout << "Running VarDP..." << std::endl;
 	SDADP<NIWModel> sdadp (test_data, niw, 1.0, 3, 8);

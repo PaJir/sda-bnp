@@ -136,7 +136,6 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
     double starttime = timer.get();
 
     if(dist0.T == 0){ //if there is no prior to work off of
-        // todo : 根据HDP的初始化参数改这里  现在主要的问题还是 参数的不一致问题 就改好参数就可以了
         //VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
         VarHDP<Model> vhdp(train_data, test_data, model, gam, alpha, T, Knew);
         vhdp.run(false);
@@ -144,8 +143,9 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
     } else { //if there is a prior
         //VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K);
 //        VarHDP<Model> vhdp(train_data, test_data, dist0, model, alpha, dist0.K+Knew);
-        VarHDP<Model> vhdp(train_data, test_data, model, gam, alpha, T, Knew);
+        VarHDP<Model> vhdp(train_data, test_data, dist0, model, gam, alpha, dist0.T+T, dist0.K+Knew);
         vhdp.run(false);
+        std::cout<<"success run"<<std::endl;
         dist1 = vhdp.getResults();
     }
     //std::cout << "Done Inference " << ljn << std::endl;
@@ -156,7 +156,7 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
 
 
     //remove empty clusters
-    //std::cout << "Remove empties " << ljn << std::endl;
+//    std::cout << "Remove empties " << ljn << std::endl;
     for (uint32_t k = dist0.T; k < dist1.T; k++){
         if (dist1.sumz(k) < 1.0 && k < dist1.T-1){
             // done: 是否需要加参数 这边是在去除空的cluster 要根据hdp的参参数调用
@@ -215,7 +215,7 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
     if(dist1.T == 0){//if removing empty clusters destroyed all of them, just quit
         return;
     }
-    //std::cout << "Done Remove empties " << ljn << std::endl;
+//    std::cout << "Done Remove empties " << ljn << std::endl;
 
     //oss << "dist1r-" << ljn;
     //dist1.save(oss.str().c_str());

@@ -143,14 +143,15 @@ int main(int argc, char** argv){
 
 		//SDA DP Test:
 		NIWModel niw(mu0, kappa0, psi0, xi0);
-		for (uint32_t i = 0; i < Nthr.size(); i++){
+		for (uint32_t i = 0; i < Nthr.size(); i++){ // 分不同线程数目训练
 			std::cout << "Running VarDP with " << Nthr[i] << " threads..." << std::endl;
 			SDADP<NIWModel> sdadp(test_data, niw, alpha, Knew, Nthr[i]);
 			uint32_t Nctr = 0;
-			while(Nctr < N){
+			while(Nctr < N){ // streaming分batch
 				std::vector<VXd> minibatch;
 				uint32_t Nmax = Nctr + Nmini < N ? Nctr + Nmini : N;
 				minibatch.insert(minibatch.begin(), train_data.begin()+Nctr, train_data.begin()+Nmax);
+                // todo：不同线程的作用
 				sdadp.submitMinibatch(minibatch);
 				Nctr += Nmini;
 			}

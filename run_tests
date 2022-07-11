@@ -9,7 +9,7 @@ then
 	./testsdahdp
 	rm testsdahdp
 	mkdir sdahdpresults
-	cp test/sdahdpplot.py sdahdpresults
+#	cp test/sdahdpplot.py sdahdpresults
 	mv *.log sdahdpresults
 	echo "Done SDA DP! Go to ./sdahdpresults and run python sdahdpplot.py to visualize the results."
 else

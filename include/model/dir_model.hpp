@@ -27,7 +27,7 @@ class DirModel{
 };
 
 DirModel::DirModel(VXd alpha0){
-	this->D = alpha0.rows();
+	this->D = alpha0.rows(); // K
 	this->eta0 = alpha0 - VXd::Ones(D);
 	this->nu0 = 0; //nu isn't needed in the dirichlet model
 	this->logh0 = lgamma(alpha0.sum());
@@ -60,7 +60,7 @@ double DirModel::getLogH0(){
 
 void DirModel::getLogH(MXd eta, VXd nu, VXd& logh, MXd& dlogh_deta, VXd& dlogh_dnu){
 	uint32_t K = eta.rows();
-	logh = dlogh_dnu = VXd::Zero(K);
+	logh = dlogh_dnu = VXd::Zero(K); // 每个类别的logh
 	dlogh_deta = MXd::Zero(K, D);
 	for (uint32_t k = 0; k < K; k++){
 		dlogh_deta.row(k) = digamma(D + eta.row(k).sum());
