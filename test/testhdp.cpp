@@ -44,7 +44,7 @@ int main(int argc, char** argv){
 		sumpis += pis.back();
 		//std::cout << "Mu: " << mus.back().transpose() << std::endl << "Sig: " << sigs.back() << std::endl << "Wt: " << pis.back() << std::endl;
 	}
-	for (uint32_t k = 0; k < K; k++){
+	for (uint32_t k = 0; k < T; k++){
 		pis[k] /= sumpis;
 	}
 

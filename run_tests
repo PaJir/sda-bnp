@@ -41,10 +41,10 @@ fi
 #    echo "Done! Running test..."
 #	./testhdp
 #	rm testhdp
-#	mkdir hdpresults
-#	cp test/hdpplot.py hdpresults
-#	mv *.log hdpresults
-#	echo "Done HDP! Go to ./hdpresults and run python hdpplot.py to visualize the results."
+#	mkdir hdpresults_new
+#	cp test/hdpplot.py hdpresults_new
+#	mv *.log hdpresults_new
+#	echo "Done HDP! Go to ./hdpresults_new and run python hdpplot.py to visualize the results."
 #else
 #    echo "Error experienced during compilation, test was not run."
 #fi

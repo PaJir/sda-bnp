@@ -45,8 +45,6 @@ MultiTrace SDAHDP<Model>::getTrace(){
     }
 
     for (uint32_t i = 0; i < dists.size(); i++){
-
-        // todo: computeTestLogLikelihood需要根据HDP改动
         mt.testlls.push_back(computeTestLogLikelihood(dists[i]));
     }
     return mt;
@@ -85,7 +83,7 @@ double SDAHDP<Model>::computeTestLogLikelihood(typename VarHDP<Model>::VarHDPRes
     }
 
     //first get average weights -- no compression
-    // todo:确定这里的weights还是这么构造吗
+    // 需要eta和u v(权重的)
     // 是否需要根据每一层去计算后验概率 再加总
     double stick = 1.0;
     VXd weights = VXd::Zero(T);
@@ -106,7 +104,6 @@ double SDAHDP<Model>::computeTestLogLikelihood(typename VarHDP<Model>::VarHDPRes
 
 template<class Model>
 void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data){
-    // todo 貌似是整个合并的过程
 
     //static int jobNum = 0;
     //int ljn = 0;
@@ -161,10 +158,13 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
 
     //remove empty clusters
 //    std::cout << "Remove empties " << ljn << std::endl;
-    for (uint32_t k = dist0.T; k < dist1.T; k++){
-        std::cout<<dist0.T<<dist1.T<<std::endl;
-        std::cout<<dist1.sumz(k)<<std::endl;
-        if (dist1.sumz(k) < 1.0 && k < dist1.T-1){
+    for (uint32_t k = dist0.T; k < dist1.T; k++){ // 先验和src的差，也就是说判断src多出来的有那个是
+//        std::cout<<dist0.T<<dist1.T<<std::endl;
+//        std::cout<<dist1.sumz(k)<<std::endl;
+//        for (uint32_t i = dist0.K)
+
+
+        if (dist1.sumz(k) < 1.0 && k < dist1.T-1){ // 判断local的 remove 将第k个元素被取代
             // done: 是否需要加参数 这边是在去除空的cluster 要根据hdp的参参数调用
             // eta nu u v zeta phi a b times objs testlls
             dist1.eta.block(k, 0, dist1.T-(k+1), dist1.eta.cols()) = (dist1.eta.block(k+1, 0, dist1.T-(k+1), dist1.eta.cols())).eval();
@@ -176,7 +176,7 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
 //            dist1.a.conservativeResize(dist1.T-1);
 //            dist1.b.segment(k, dist1.T-(k+1)) = (dist1.b.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
 //            dist1.b.conservativeResize(dist1.T-1);
-
+            // todo bug 对每个餐馆内都要做操作
             dist1.u.segment(k, dist1.T-(k+1)) = (dist1.u.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
             dist1.u.conservativeResize(dist1.T-1);
             dist1.v.segment(k, dist1.T-(k+1)) = (dist1.v.segment(k+1, dist1.T-(k+1))).eval(); //eval stops aliasing
@@ -208,7 +208,7 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
             // eta nu u v zeta phi a b times objs testlls
             dist1.sumz.conservativeResize(dist1.T-1);
             dist1.logp0.conservativeResize(dist1.T-1);
-// todo bug
+            // todo bug
             dist1.eta.conservativeResize(dist1.T-1, Eigen::NoChange);
             dist1.nu.conservativeResize(dist1.T-1);
 //            dist1.a.conservativeResize(dist1.T-1);
@@ -251,6 +251,9 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
         double t0 = timer.get(); //reuse t0 -- already stored it above
         //std::cout << "Job " << ljn << std::endl;
         dist = mergeDistributions(dist1, dist, dist0);
+        std::cout<<"complete merge"<<std::endl;
+        std::cout<<dist.sumz.transpose()<<std::endl;
+        std::cout<<dist.logp0.transpose()<<std::endl;
         mergetime = timer.get()- t0;
         //	std::cout << "Done Merging, saving dist " << ljn << std::endl;
         t0 = timer.get();
@@ -281,7 +284,8 @@ void SDAHDP<Model>::varHDPJob(const std::vector< std::vector<VXd> >& train_data)
     //} //release the lock
 
     //double t0 = timer.get();
-    //double testll = computeTestLogLikelihood(distf);
+//    double testll = computeTestLogLikelihood(dist);
+//    std::cout<<testll<<std::endl;
     //{
     //	std::lock_guard<std::mutex> lock(distmut);
     //	mtrace.starttimes.push_back(starttime);

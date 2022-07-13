@@ -118,10 +118,12 @@ int main(int argc, char** argv){
 
     uint32_t Nctr = 0;
     while(Nctr < N){
+        std::cout<<Nctr<<std::endl;
         std::vector< std::vector<VXd> > minibatch;
         minibatch.insert(minibatch.begin(), train_data.begin()+Nctr, train_data.begin()+Nctr+Nmini);
         sdahdp.submitMinibatch(minibatch);
         Nctr += Nmini;
+        std::cout<<Nctr<<std::endl;
     }
     sdahdp.waitUntilDone();
     VarHDP<NIWModel>::VarHDPResults res = sdahdp.getResults();

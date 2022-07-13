@@ -6,7 +6,7 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
     this->M = this->model.getStatDimension();
 	this->N = train_data.size();
 	this->Nt = test_data.size();
-    K0 = 0;
+//    K0 = 0;
     T0 = 0;
     eta0 = MXd::Zero(T, M);
 
@@ -29,7 +29,7 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
     // T is global, K is local
 	nu = logh = dlogh_dnu = psiuvsum = phizetasum = phisum = VXd::Zero(T); // global part
 	eta = dlogh_deta = phizetaTsum = MXd::Zero(T, M); // global part
-	u = v = VXd::Zero(T-1); 
+	u = v = VXd::Zero(T);
 	for (uint32_t i = 0; i < N; i++){
         // local part
 		a.push_back(VXd::Zero(K-1));
@@ -82,7 +82,7 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
     std::cout<<"done getting global params"<<std::endl; //
     eta = dlogh_deta = phizetaTsum = MXd::Zero(T, M); // global part
     std::cout<<"done getting global params"<<std::endl; //
-    u = v = VXd::Zero(T-1);
+    u = v = VXd::Zero(T);
     std::cout<<"done getting global params"<<std::endl; //
     for (uint32_t i = 0; i < N; i++){
         // local part
@@ -125,7 +125,7 @@ void VarHDP<Model>::init(){
     std::vector<double> maxMinDists;
     // done:kmeaspp部分找到eta0和K0 eta0是有问题的 现在只能保证跑通 and prior hdp中是没有的
 //    uint32_t K0 = 0;
-    std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta0, K0, rng, maxMinDists);
+    std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta0, T0, rng, maxMinDists);
 //	std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, rng);
 	for (uint32_t t = 0; t < T; t++){
 		//Update the parameters 
@@ -139,8 +139,8 @@ void VarHDP<Model>::init(){
 	model.getLogH(eta, nu, logh, dlogh_deta, dlogh_dnu);
 
 	//initialize the global topic weights
-	u = VXd::Ones(T-1);
-	v = gam*VXd::Ones(T-1);
+	u = VXd::Ones(T);
+	v = gam*VXd::Ones(T);
 
 	//initial local params
 	for(uint32_t i =0; i < N; i++){
@@ -266,16 +266,33 @@ typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
 	hdpr.u = this->u;
 	hdpr.v = this->v;
 	hdpr.zeta = this->zeta;
+//    for (uint32_t i = 0; i < hdpr.zeta.size(); i++){
+//
+//        hdpr.sumz.push_back((this->zeta[i].colwise().sum()).transpose()); // 和sumzeta一样的
+//        hdpr.logp0.push_back((((1.0-this->zeta[i].array()).log()).colwise().sum()).transpose());
+//        for (uint32_t k = 0; k < K; k++){
+//            if (d.logp0(k) < -800.0){ //stops numerical issues later on -- approximation is good enough, for all intents and purposes exp(-800) = 0
+//                d.logp0(k) = -800.0;
+//            }
+//        }
+//    }
+
+
+
 	hdpr.phi = this->phi;
     std::cout<<"done getting params"<<std::endl;
-    hdpr.sumz = (this->phizetaTsum.colwise().sum()).transpose();
+    std::cout<<this->phizetaTsum<<std::endl;
+    hdpr.sumz = (this->phizetaTsum.rowwise().sum()).transpose();
+//    hdpr.sumz = phizetasum;
     std::cout<<"done computing sumz"<<std::endl;
-    hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).colwise().sum()).transpose();
-    for (uint32_t k = 0; k < T-1; k++){
-        if (hdpr.logp0(k) < -800.0){ //stops numerical issues later on -- approximation is good enough, for all intents and purposes exp(-800) = 0
-            hdpr.logp0(k) = -800.0;
-        }
-    }
+    hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).rowwise().sum()).transpose();
+    std::cout<<hdpr.logp0.transpose()<<std::endl;
+    std::cout<<"done computing logp0"<<std::endl;
+//    for (uint32_t k = 0; k < T-1; k++){
+//        if (hdpr.logp0(k) < -800.0){ //stops numerical issues later on -- approximation is good enough, for all intents and purposes exp(-800) = 0
+//            hdpr.logp0(k) = -800.0;
+//        }
+//    }
     std::cout<<"done computing logp0"<<std::endl;
 
     // done: 是否需要push back
@@ -307,7 +324,7 @@ typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
 template<class Model>
 void VarHDP<Model>::VarHDPResults::save(std::string name){
 	for (uint32_t i = 0; i < zeta.size(); i++){
-        std::cout<<zeta.size()<<std::endl;
+//        std::cout<<zeta.size()<<std::endl;
 		std::ostringstream ossz, ossp, ossab;
 		ossz << name << "-zeta-" << i << ".log";
 		ossp << name << "-phi-" << i << ".log";
@@ -378,7 +395,7 @@ void VarHDP<Model>::updateLocalDists(double tol){
 		for(uint32_t t = 0; t < T; t++){
 			for(uint32_t k = 0; k < K; k++){
 				phizetasum(t) += phi[i](k, t)*zetasum[i](k);
-				phisum(t) += phi[i](k, t);
+				phisum(t) += phi[i](k, t); // 会被用去更新全局的beta分布参数u v
 				for (uint32_t j = 0; j < M; j++){
 					phizetaTsum(t, j) += phi[i](k, t)*zetaTsum[i](k, j);
 				}
@@ -497,9 +514,9 @@ void VarHDP<Model>::updateGlobalWeightDist(){
 		for (uint32_t j = t+1; j < T; j++){
 			v(t) += phisum(j);
 		}
-    	double psiut = digamma(u(t)) - digamma(u(t)+v(t));
+    	double psiut = digamma(u(t)) - digamma(u(t)+v(t)); // elog betak
     	psiuvsum(t) = psiut + psivt;
-    	psivt += digamma(v(t)) - digamma(u(t)+v(t));
+    	psivt += digamma(v(t)) - digamma(u(t)+v(t)); // elog (1-betek)
 	}
 	psiuvsum(T-1) = psivt;
 }
@@ -519,7 +536,7 @@ void VarHDP<Model>::updateGlobalParamDist(){
 
 template<class Model>
 double VarHDP<Model>::computeFullObjective(){
-    // todo 多出来的那层
+
 
 	//reuse the local code for computing each local obj
 	double obj = 0;

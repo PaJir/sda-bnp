@@ -346,7 +346,6 @@ void VarDP<Model>::updateLabelDist(){
 template<class Model>
 typename VarDP<Model>::Distribution VarDP<Model>::getDistribution(){
 	VarDP<Model>::Distribution d;
-
 	d.sumz = (this->zeta.colwise().sum()).transpose(); // 和sumzeta一样的
 	d.logp0 = (((1.0-this->zeta.array()).log()).colwise().sum()).transpose();
 	for (uint32_t k = 0; k < K; k++){
