@@ -94,7 +94,7 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
         phiNsum.push_back(VXd::Zero(K));
         phiEsum.push_back(MXd::Zero(K, M));
         zetaTsum.push_back(MXd::Zero(K, M));
-        phi.push_back(MXd::Zero(K, T));
+        phi.push_back(MXd::Zero(K, T)); // 将K映射到T？
     }
     std::cout<<"done getting local params"<<std::endl;
 
@@ -223,18 +223,22 @@ void VarHDP<Model>::run(bool computeTestLL, double tol){
 
 		//update the local distributions
 		updateLocalDists(tol);
+        std::cout<<"done update the local distributions"<<std::endl;
 		//update the global distribution
 		updateGlobalDist();
+        std::cout<<"done update the global distribution"<<std::endl;
 
 		prevobj = obj;
 		//store the current time
 		times.push_back(cpuTime.get());
 		//compute the objective
 		obj = computeFullObjective();
+        std::cout<<"done update computeFullObjective"<<std::endl;
 		//save the objective
 		objs.push_back(obj);
 		//compute the obj diff
 		diff = fabs((obj - prevobj)/obj);
+        std::cout<<"done update diff"<<std::endl;
 		//if test likelihoods were requested, compute those (but pause the timer first)
 		if (computeTestLL){
 			cpuTime.stop();
@@ -281,11 +285,17 @@ typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
 
 	hdpr.phi = this->phi;
     std::cout<<"done getting params"<<std::endl;
-    std::cout<<this->phizetaTsum<<std::endl;
-    hdpr.sumz = (this->phizetaTsum.rowwise().sum()).transpose();
-//    hdpr.sumz = phizetasum;
+
+    std::cout<<"phizetaTsum"<<this->phizetaTsum<<std::endl;
+
+
+
+//    hdpr.sumz = (this->phizetaTsum.rowwise().sum()).transpose();
+    hdpr.sumz = this->phisum;
     std::cout<<"done computing sumz"<<std::endl;
-    hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).rowwise().sum()).transpose();
+
+//    hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).rowwise().sum()).transpose();
+    hdpr.logp0 = ((this->phisum.sum()-this->phisum.array()).log()).transpose();
     std::cout<<hdpr.logp0.transpose()<<std::endl;
     std::cout<<"done computing logp0"<<std::endl;
 //    for (uint32_t k = 0; k < T-1; k++){
@@ -355,6 +365,14 @@ void VarHDP<Model>::VarHDPResults::save(std::string name){
 	out_uv << u.transpose() << std::endl << v.transpose();
 	out_uv.close();
 
+    std::ofstream out_z(name+"-sumz.log", std::ios_base::trunc);
+    out_z << sumz;
+    out_z.close();
+
+    std::ofstream out_lp(name+"-logp0.log", std::ios_base::trunc);
+    out_lp << logp0;
+    out_lp.close();
+
 	std::ofstream out_trc(name+"-trace.log", std::ios_base::trunc);
 	for (uint32_t i = 0; i < times.size(); i++){
 		out_trc << times[i] << " " << objs[i];
@@ -377,17 +395,20 @@ void VarHDP<Model>::updateLocalDists(double tol){
 	for (uint32_t i = 0; i < N; i++){
 		//create objective tracking vars
 		double diff = 10.0*tol + 1.0;
-		double obj = std::numeric_limits<double>::infinity();
-		double prevobj = std::numeric_limits<double>::infinity();
+		double obj = std::numeric_limits<double>::infinity(); // inf
+		double prevobj = std::numeric_limits<double>::infinity();// inf
 
 		//run variational updates on the local params
 		while(diff > tol){
 			updateLocalLabelDist(i);
+//            std::cout<<"local part: done updateLocalLabelDist;"<<std::endl;
 			updateLocalWeightDist(i);
+//            std::cout<<"local part: done updateLocalWeightDist;"<<std::endl;
 			updateLocalCorrespondenceDist(i);
+//            std::cout<<"local part: done updateCorrespondenceDist;"<<std::endl;
 			prevobj = obj;
 			obj = computeLocalObjective(i);
-
+//            std::cout<<"local part: done computeLocalObjective;"<<std::endl;
 			//compute the obj diff
 			diff = fabs((obj - prevobj)/obj);
 		}
@@ -395,10 +416,13 @@ void VarHDP<Model>::updateLocalDists(double tol){
 		for(uint32_t t = 0; t < T; t++){
 			for(uint32_t k = 0; k < K; k++){
 				phizetasum(t) += phi[i](k, t)*zetasum[i](k);
+//                std::cout<<"local part: done compute phizetasum;"<<std::endl;
 				phisum(t) += phi[i](k, t); // 会被用去更新全局的beta分布参数u v
+//                std::cout<<"local part: done compute phisum;"<<std::endl;
 				for (uint32_t j = 0; j < M; j++){
 					phizetaTsum(t, j) += phi[i](k, t)*zetaTsum[i](k, j);
 				}
+//                std::cout<<"local part: done compute phizetaTsum;"<<std::endl;
 			}
 		}
 	}
@@ -588,17 +612,20 @@ double VarHDP<Model>::computeLocalObjective(uint32_t idx){
 	MXd mzero = MXd::Zero(zeta[idx].rows(), zeta[idx].cols());
 	MXd zlogz = zeta[idx].array()*zeta[idx].array().log();
 	double labelEntropy = ((zeta[idx].array() > 1.0e-16).select(zlogz, mzero)).sum();
+//    std::cout<<"done labelEntropy"<<std::endl;
 
 	//get the correspondence entropy
 	MXd pzero = MXd::Zero(phi[idx].rows(), phi[idx].cols());
 	MXd plogp = phi[idx].array()*phi[idx].array().log();
 	double corrEntropy = ((phi[idx].array() > 1.0e-16).select(plogp, pzero)).sum();
+//    std::cout<<"done corrEntropy"<<std::endl;
 
 	//get the variational beta entropy
 	double betaEntropy = 0.0;
 	for (uint32_t k = 0; k < K-1; k++){
         betaEntropy += -boost_lbeta(a[idx](k), b[idx](k)) + (a[idx](k)-1.0)*digamma(a[idx](k)) +(b[idx](k)-1.0)*digamma(b[idx](k))-(a[idx](k)+b[idx](k)-2.0)*digamma(a[idx](k)+b[idx](k));
 	}
+//    std::cout<<"done betaEntropy"<<std::endl;
 
 	//get the likelihood cross entropy
 	double likelihoodXEntropy = 0.0;
@@ -608,6 +635,7 @@ double VarHDP<Model>::computeLocalObjective(uint32_t idx){
 			likelihoodXEntropy -= zetaTsum[idx](k, j)*phiEsum[idx](k, j);
 		}
 	}
+//    std::cout<<"done likelihoodXEntropy"<<std::endl;
 
 	//get the prior label cross entropy
 	double priorLabelXEntropy = 0.0;
@@ -618,6 +646,7 @@ double VarHDP<Model>::computeLocalObjective(uint32_t idx){
 		psibk += digamma(b[idx](k)) - digamma(a[idx](k)+b[idx](k));
 	}
 	priorLabelXEntropy += zetasum[idx](K-1)*psibk;
+//    std::cout<<"done priorLabelXEntropy"<<std::endl;
 
 	//get the prior correspondence cross entropy
 	double priorCorrXEntropy = 0.0;
@@ -632,12 +661,14 @@ double VarHDP<Model>::computeLocalObjective(uint32_t idx){
 	for(uint32_t k = 0; k < K; k++){
 		priorCorrXEntropy += phi[idx](k, T-1)*psivt;
 	}
+//    std::cout<<"done priorCorrXEntropy"<<std::endl;
 
 	//get the prior beta cross entropy
 	double priorBetaXEntropy = -K*boost_lbeta(1.0, alpha);
 	for (uint32_t k = 0; k < K-1; k++){
 		priorBetaXEntropy += (alpha-1.0)*(digamma(b[idx](k)) - digamma(a[idx](k)+b[idx](k)));
 	}
+//    std::cout<<"done priorBetaXEntropy"<<std::endl;
 
 	return labelEntropy 
 		 + corrEntropy

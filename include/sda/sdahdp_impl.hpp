@@ -84,7 +84,7 @@ double SDAHDP<Model>::computeTestLogLikelihood(typename VarHDP<Model>::VarHDPRes
 
     //first get average weights -- no compression
     // 需要eta和u v(权重的)
-    // 是否需要根据每一层去计算后验概率 再加总
+    // todo 是否需要根据每一层去计算后验概率 再加总
     double stick = 1.0;
     VXd weights = VXd::Zero(T);
     for(uint32_t k = 0; k < T-1; k++){
