@@ -1,7 +1,7 @@
 #ifndef __HDP_IMPL_HPP
 
 template<class Model>
-VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K) : model(model), test_data(test_data), gam(gam), alpha(alpha), T(T), K(K){
+VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const std::vector< std::vector<VXd> >& test_data, const Model& model, double gam, double alpha, uint32_t T, uint32_t K) :model(model), test_data(test_data), gam(gam), alpha(alpha), T(T), K(K){
 	std::cout<<"init without prior"<<std::endl;
     this->M = this->model.getStatDimension();
 	this->N = train_data.size();
@@ -113,6 +113,7 @@ void VarHDP<Model>::init(){
 		Nlsum += Nl[i];
 	}
 	MXd tmp_stats = MXd::Zero( std::min(1000, Nlsum), M );
+//    MXd tmp_stats = MXd::Zero( Nlsum, M );
 	std::uniform_int_distribution<> uni(0, N-1);
 	for (uint32_t i = 0; i < tmp_stats.rows(); i++){
 		int gid = uni(rng);
@@ -125,19 +126,25 @@ void VarHDP<Model>::init(){
     std::vector<double> maxMinDists;
     // done:kmeaspp部分找到eta0和K0 eta0是有问题的 现在只能保证跑通 and prior hdp中是没有的
 //    uint32_t K0 = 0;
+    std::cout<<"start kmeanspp"<<std::endl;
+    // todo:bug fix 这里设置成T0 = 0 就能跑(就会解锁下面的bug)
     std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta0, T0, rng, maxMinDists);
+//    std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, eta0, T0, rng, maxMinDists);
 //	std::vector<uint32_t> idces = kmeanspp(tmp_stats, [this](VXd& x, VXd& y){ return model.naturalParameterDistSquared(x, y); }, T, rng);
-	for (uint32_t t = 0; t < T; t++){
+    std::cout<<"end kmeanspp"<<std::endl;
+
+    for (uint32_t t = 0; t < T; t++){
 		//Update the parameters 
 	    for (uint32_t j = 0; j < M; j++){
 	    	eta(t, j) = model.getEta0()(j)+tmp_stats(idces[t], j);
 	    }
 		nu(t) = model.getNu0() + 1.0;
 	}
+    std::cout<<"end getEta0"<<std::endl;
 
 	//update logh/etc
 	model.getLogH(eta, nu, logh, dlogh_deta, dlogh_dnu);
-
+    std::cout<<"end getLogH"<<std::endl;
 	//initialize the global topic weights
 	u = VXd::Ones(T);
 	v = gam*VXd::Ones(T);
@@ -156,6 +163,7 @@ void VarHDP<Model>::init(){
     		psibk += digamma(b[i](k)) - digamma(a[i](k)+b[i](k));
 		}
 		psiabsum[i](K-1) = psibk;
+        std::cout<<"end getpsiabsum"<<std::endl;
 
 		//local correspondences
 		//go through the data in document i, sum up -stat.T*dloghdeta
@@ -168,6 +176,8 @@ void VarHDP<Model>::init(){
 				}
 			}
 		}
+        std::cout<<"end getasgnscores"<<std::endl;
+        // todo:bug fix asgnscores
 		//take the top K and weight more heavily for dirichlet
 		std::sort(asgnscores.begin(), asgnscores.end(), [] (std::pair<uint32_t, double> s1, std::pair<uint32_t, double> s2){ return s1.second > s2.second;});
 		phi[i] = MXd::Ones(K, T);
@@ -192,6 +202,7 @@ void VarHDP<Model>::init(){
 				phiEsum[i].row(k) += phi[i](k, t)*dlogh_deta.row(t);
 			}
 		}
+        std::cout<<"end getphi"<<std::endl;
 		//everything needed for the first label update is ready
 	}
 	
@@ -295,7 +306,7 @@ typename VarHDP<Model>::VarHDPResults VarHDP<Model>::getResults(){
     std::cout<<"done computing sumz"<<std::endl;
 
 //    hdpr.logp0 = (((1.0-this->phizetaTsum.array()).log()).rowwise().sum()).transpose();
-    hdpr.logp0 = ((this->phisum.sum()-this->phisum.array()).log()).transpose();
+    hdpr.logp0 = (((this->phisum.maxCoeff()+1)-this->phisum.array()).log()).transpose();
     std::cout<<hdpr.logp0.transpose()<<std::endl;
     std::cout<<"done computing logp0"<<std::endl;
 //    for (uint32_t k = 0; k < T-1; k++){

@@ -433,6 +433,8 @@ typename VarHDP<Model>::VarHDPResults SDAHDP<Model>::mergeDistributions(typename
         std::vector<int> matchings;
 
         // 如文章中调用hungarian计算
+        std::cout<<"costsi"<<costsi<<std::endl;
+
         int cost = hungarian(costsi, matchings);
 
 
