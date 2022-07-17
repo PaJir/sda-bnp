@@ -32,8 +32,8 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
 	u = v = VXd::Zero(T);
 	for (uint32_t i = 0; i < N; i++){
         // local part
-		a.push_back(VXd::Zero(K-1));
-		b.push_back(VXd::Zero(K-1));
+		a.push_back(VXd::Zero(K));
+		b.push_back(VXd::Zero(K));
 		psiabsum.push_back(VXd::Zero(K));
 		zeta.push_back(MXd::Zero(Nl[i], K));
 		zetasum.push_back(VXd::Zero(K));
@@ -86,8 +86,8 @@ VarHDP<Model>::VarHDP(const std::vector< std::vector<VXd> >& train_data, const s
     std::cout<<"done getting global params"<<std::endl; //
     for (uint32_t i = 0; i < N; i++){
         // local part
-        a.push_back(VXd::Zero(K-1));
-        b.push_back(VXd::Zero(K-1));
+        a.push_back(VXd::Zero(K));
+        b.push_back(VXd::Zero(K));
         psiabsum.push_back(VXd::Zero(K));
         zeta.push_back(MXd::Zero(Nl[i], K));
         zetasum.push_back(VXd::Zero(K));
@@ -150,7 +150,7 @@ void VarHDP<Model>::init(){
 	v = gam*VXd::Ones(T);
 
 	//initial local params
-	for(uint32_t i =0; i < N; i++){
+	for(uint32_t i =0; i < N; i++){ // 为什么是N
 		//local weights
 		a[i] = VXd::Ones(K-1);
 		b[i] = alpha*VXd::Ones(K-1);

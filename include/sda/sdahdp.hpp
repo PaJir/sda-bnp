@@ -32,9 +32,12 @@ public:
     void waitUntilDone();
     typename VarHDP<Model>::VarHDPResults getResults();
     MultiTrace getTrace();
-private:
     double computeTestLogLikelihood(typename VarHDP<Model>::VarHDPResults dist0);
     typename VarHDP<Model>::VarHDPResults mergeDistributions(typename VarHDP<Model>::VarHDPResults d1, typename VarHDP<Model>::VarHDPResults d2, typename VarHDP<Model>::VarHDPResults d0);
+
+private:
+//    double computeTestLogLikelihood(typename VarHDP<Model>::VarHDPResults dist0);
+//    typename VarHDP<Model>::VarHDPResults mergeDistributions(typename VarHDP<Model>::VarHDPResults d1, typename VarHDP<Model>::VarHDPResults d2, typename VarHDP<Model>::VarHDPResults d0);
 
     Timer timer;
     double alpha;
