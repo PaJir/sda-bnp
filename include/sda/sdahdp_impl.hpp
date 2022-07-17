@@ -324,7 +324,7 @@ typename VarHDP<Model>::VarHDPResults SDAHDP<Model>::mergeDistributions(typename
     assert(Kd >= Kp && Ks >= Kp);
 
     // 判断聚类簇数是否相同，若相同直接合并
-    // todo: 维度需要改变
+
     if (Ks == Kp){
         //no new components created; just do the merge directly
         //match the first Ks elements (one for each src component) to the dest
@@ -332,7 +332,7 @@ typename VarHDP<Model>::VarHDPResults SDAHDP<Model>::mergeDistributions(typename
         out.eta.block(0, 0, Ks, M) += src.eta - prior.eta;
         out.nu.head(Ks) += src.nu - prior.nu;
 
-        // todo 找到全局的sumz和logp0
+
         out.sumz.head(Ks) += src.sumz;
         out.logp0.head(Ks) += src.logp0;
         for (uint32_t k = 0; k < Kd; k++){
@@ -472,8 +472,8 @@ typename VarHDP<Model>::VarHDPResults SDAHDP<Model>::mergeDistributions(typename
                 out.logp0(out.T-1) = src.logp0(i);
             }
         }
-        out.a.resize(out.T);
-        out.b.resize(out.T);
+        out.u.resize(out.T);
+        out.v.resize(out.T);
         for (uint32_t k = 0; k < out.T; k++){
             out.u(k) = 1.0 + out.sumz(k);
             out.v(k) = alpha;
