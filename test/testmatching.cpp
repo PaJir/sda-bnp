@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 #include <Eigen/Dense>
-#include <sdabnp/util/matching.hpp>
+#include <util/matching.hpp>
 
 typedef Eigen::MatrixXi MXi;
 

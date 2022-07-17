@@ -11,11 +11,11 @@
 //#include <random>
 #include<thread>
 #include<mutex>
-#include <sdabnp/infer/dp.hpp>
-#include <sdabnp/util/timer.hpp>
-#include <sdabnp/util/matching.hpp>
-#include <sdabnp/util/trace.hpp>
-#include <sdabnp/util/pool.hpp>
+#include <infer/dp.hpp>
+#include <util/timer.hpp>
+#include <util/matching.hpp>
+#include <util/trace.hpp>
+#include <util/pool.hpp>
 #include <cassert>
 
 typedef Eigen::VectorXd VXd;

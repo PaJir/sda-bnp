@@ -1,5 +1,5 @@
-#include <sdabnp/hdp_mixture>
-#include <sdabnp/model/normal_inverse_wishart>
+#include <hdp_mixture>
+#include <model/normal_inverse_wishart>
 #include <Eigen/Dense>
 #include <random>
 

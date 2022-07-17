@@ -1,0 +1,31 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "build",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-std=c++11",
+                "-O0",
+                "-I/usr/local/include/eigen3",
+                "-I${workspaceFolder}/include",
+                // "-I/usr/local/include",
+                "-lboost_system",
+                "-lpthread",
+                "-g",
+                "${workspaceFolder}/test/testsdahdp.cpp",
+                "-o",
+                "${workspaceFolder}/${fileBasenameNoExtension}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ],
+    "version": "2.0.0"
+}

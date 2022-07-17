@@ -9,9 +9,9 @@
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/gamma.hpp>
 #include <random>
-#include <sdabnp/util/timer.hpp>
-#include <sdabnp/util/kmpp.hpp>
-#include <sdabnp/util/trace.hpp>
+#include <util/timer.hpp>
+#include <util/kmpp.hpp>
+#include <util/trace.hpp>
 
 typedef Eigen::VectorXd VXd;
 typedef Eigen::MatrixXd MXd;

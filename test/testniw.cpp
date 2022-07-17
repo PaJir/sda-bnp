@@ -1,4 +1,4 @@
-#include <sdabnp/model/normal_inverse_wishart>
+#include <model/normal_inverse_wishart>
 #include <fstream>
 
 int main(int argc, char** argv){

@@ -2,9 +2,9 @@
 // Created by 黄韧 on 2022/6/28.
 //
 
-#include <sdabnp/sda_dp_mixture>
-#include <sdabnp/sda_hdp_mixture>
-#include <sdabnp/model/normal_inverse_wishart>
+#include <sda_dp_mixture>
+#include <sda_hdp_mixture>
+#include <model/normal_inverse_wishart>
 #include <Eigen/Dense>
 #include <random>
 

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <random>
-#include <sdabnp/util/pool.hpp>
+#include <util/pool.hpp>
 
 
 class Foo{

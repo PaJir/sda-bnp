@@ -3,3 +3,5 @@ hdpresults/
 sdadpresults/
 sdahdpresults/
 CMakeLists.txt
+*.log
+testsdahdp
