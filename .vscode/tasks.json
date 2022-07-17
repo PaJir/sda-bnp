@@ -16,7 +16,7 @@
                 "-g",
                 "${workspaceFolder}/test/testsdahdp.cpp",
                 "-o",
-                "${workspaceFolder}/${fileBasenameNoExtension}"
+                "${workspaceFolder}/testsdahdp"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
