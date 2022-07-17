@@ -136,7 +136,11 @@ void VarHDP<Model>::init(){
     for (uint32_t t = 0; t < T; t++){
 		//Update the parameters 
 	    for (uint32_t j = 0; j < M; j++){
-	    	eta(t, j) = model.getEta0()(j)+tmp_stats(idces[t], j);
+			if (t < T - T0) {
+				eta(t, j) = model.getEta0()(j)+tmp_stats(idces[t], j);
+			} else {
+				eta(t, j) = model.getEta0()(j);
+			}
 	    }
 		nu(t) = model.getNu0() + 1.0;
 	}
