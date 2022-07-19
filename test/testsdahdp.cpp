@@ -115,29 +115,35 @@ void readModel(std::string data_name, std::vector<std::vector<VXd> >& data, cons
     ifs.close();
 }
 
-void readArxiv(std::string data_name, std::vector<std::vector<VXd> >& data, uint32_t& N) {
+void readArxiv(std::string data_name, std::vector<std::vector<VXd> >& data, uint32_t& N, const uint32_t& Nl) {
     const int size_vocab = 12388;
     int n = 0; // train data length
+    int Nli = Nl;
     int length, count, word;
     FILE* fileptr = fopen(data_name.c_str(), "r");
     while(fscanf(fileptr, "%10d", &length) != EOF) {
-        n++;
-        data.push_back(std::vector<VXd>(size_vocab, VXd::Zero(1))); // size: size_vocab, default value: Zero(1)
+        if (Nli == Nl) {
+            Nli = 0;
+            data.push_back(std::vector<VXd>(Nl, VXd::Zero(size_vocab))); // size: Nl, defalut value: Zero(size_vocab)
+            n++;
+        }
         for (int i = 0; i < length; i++) {
             fscanf(fileptr, "%10d:%10d", &word, &count);
-            data.back()[word](0) = count; // update count
+            data.back()[Nli](word) = count; // update count
         }
+        Nli++;
     }
     N = n;
+    fclose(fileptr);
 }
 
 int main(int argc, char** argv) {
     // constants
     uint32_t T = 100;
     uint32_t K = 10;
-    uint32_t N = 500;
+    uint32_t N; // = 500;
     uint32_t Nl = 100;
-    uint32_t Nt = 100;
+    uint32_t Nt; // = 100;
     uint32_t Ntl = 100;
     uint32_t Nmini = 100;
     uint32_t D = 2;
@@ -148,8 +154,8 @@ int main(int argc, char** argv) {
     // randomModel(train_data, test_data, K, D, N, Nl, Nt, Ntl);
     // readModel("train.log", train_data, D, N, Nl);
     // readModel("test.log", test_data, D, Nt, Ntl);
-    readArxiv("data/arxiv_train.dat", train_data, N);
-    readArxiv("data/arxiv_test.dat", test_data, Nt);
+    readArxiv("data/arxiv_train.dat", train_data, N, Nl);
+    readArxiv("data/arxiv_test.dat", test_data, Nt, Ntl);
 
     VXd mu0 = VXd::Zero(D);
     MXd psi0 = MXd::Identity(D, D);
